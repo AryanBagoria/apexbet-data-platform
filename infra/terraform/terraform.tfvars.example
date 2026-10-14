@@ -1,0 +1,11 @@
+# Copy to terraform.tfvars and adjust. NEVER commit real credentials.
+region                 = "us-east-1"
+project                = "apexbet"
+environment            = "dev"
+kinesis_shard_count    = 2
+kinesis_retention_hours = 48
+lake_bucket_suffix     = "synthetic"
+log_retention_days     = 14
+enable_ecr             = true
+enable_secrets         = true
+enable_glue_catalog    = true

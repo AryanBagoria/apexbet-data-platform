@@ -1,0 +1,265 @@
+name: ci
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Format · Lint · Types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Ruff lint
+        run: ruff check src tests dags
+
+      - name: Ruff format check
+        run: ruff format --check src tests dags
+
+      - name: mypy
+        run: mypy src/apexbet
+
+  test:
+    name: Unit · Contract · Reliability
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run tests (integration tests self-skip without services)
+        env:
+          APEXBET_TRANSPORT: memory
+          APEXBET_LOG_JSON: "false"
+        run: pytest -q --cov=apexbet --cov-report=xml --cov-report=term-missing
+
+      - name: dbt model validation (DuckDB, no dbt runtime)
+        run: |
+          python -c "
+          from apexbet.dbt_validate import validate_models
+          import sys, duckdb, tempfile, os
+          # Build a minimal DuckDB with the source tables, then validate models.
+          from tests.unit.test_dbt_validate import _build_minimal_duckdb
+          path = os.path.join(tempfile.mkdtemp(), 'a.duckdb')
+          _build_minimal_duckdb(path)
+          r = validate_models(path)
+          print(r)
+          sys.exit(0 if r['ok'] else 1)
+          "
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage.xml
+          if-no-files-found: ignore
+
+  e2e:
+    name: End-to-end demo (offline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run the acceptance demo
+        env:
+          APEXBET_TRANSPORT: memory
+          APEXBET_LOG_JSON: "false"
+        run: |
+          apexbet demo --count 4000 | tee demo.out
+          grep -q "DEMO PASSED" demo.out
+
+      - name: Anomaly evaluation (measured, not asserted)
+        env:
+          APEXBET_TRANSPORT: memory
+        run: apexbet anomaly-eval
+
+  frontend:
+    name: Dashboard — lint · types · unit tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm run test
+
+      - name: Build
+        run: npm run build
+
+  e2e-dashboard:
+    name: Dashboard — end-to-end (Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install backend + seed synthetic data
+        env:
+          APEXBET_TRANSPORT: memory
+          APEXBET_LOG_JSON: "false"
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          apexbet demo --count 4000
+
+      - name: Install dashboard deps + Playwright browser
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      - name: Start API + dev server and run Playwright end-to-end tests
+        working-directory: frontend
+        env:
+          APEXBET_TRANSPORT: memory
+          APEXBET_LOG_JSON: "false"
+          VITE_API_TARGET: http://127.0.0.1:8000
+        run: |
+          # Both servers are started and used within this step: background
+          # processes do not survive between GitHub Actions steps.
+          (cd .. && apexbet serve --host 127.0.0.1 --port 8000 > /tmp/api.log 2>&1 &)
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:8000/health && break || sleep 1
+          done
+          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/vite.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:5173/ && break || sleep 1
+          done
+          npm run test:e2e
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report
+          if-no-files-found: ignore
+
+  docker:
+    name: Docker build + compose validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate compose (both profiles)
+        run: |
+          docker compose --profile demo config >/dev/null
+          docker compose --profile full config >/dev/null
+
+      - name: Build image
+        run: docker build -t apexbet:ci .
+
+  terraform:
+    name: Terraform fmt + validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.5"
+
+      - name: terraform fmt check
+        run: terraform fmt -check -recursive infra/terraform
+
+      - name: terraform validate
+        run: |
+          terraform -chdir=infra/terraform init -backend=false -input=false
+          terraform -chdir=infra/terraform validate -no-color
+
+  security:
+    name: Dependency & secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: pip-audit (dependency vulnerabilities)
+        run: |
+          python -m pip install --upgrade pip pip-audit
+          # Audit the environment installed from pyproject.toml. Report findings;
+          # do not fail the build on advisories that have no fix released yet.
+          pip install -e .
+          pip-audit || true
+
+      - name: gitleaks (secret scan)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

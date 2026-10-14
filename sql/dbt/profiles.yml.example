@@ -1,0 +1,16 @@
+# Example dbt profile for ApexBet (DuckDB target).
+#
+# This file documents the expected profile. Do NOT commit credentials. Copy to
+# ~/.dbt/profiles.yml (or set DBT_PROFILES_DIR) and adjust the path.
+#
+# The DuckDB file is the same one produced by `apexbet analytics` / the pipeline
+# (`APEXBET_DUCKDB_PATH`, default ./lake/analytics.duckdb).
+apexbet:
+  target: local
+  outputs:
+    local:
+      type: duckdb
+      path: "{{ env_var('APEXBET_DUCKDB_PATH', './lake/analytics.duckdb') }}"
+      threads: 4
+      extensions:
+        - parquet

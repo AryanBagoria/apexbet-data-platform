@@ -1,0 +1,32 @@
+version: 2
+
+models:
+  - name: mart_betting_performance
+    description: "Betting KPIs per day x sport (money in integer minor units)."
+    columns:
+      - name: event_date
+        tests: [not_null]
+      - name: staked_minor
+        tests: [not_null]
+      - name: rejection_rate
+        description: "Rejected bets / placed bets; between 0 and 1."
+
+  - name: mart_financial_daily
+    description: "Daily money movement per currency, minor units."
+    columns:
+      - name: event_date
+        tests: [not_null]
+      - name: currency
+        tests: [not_null]
+
+  - name: mart_data_quality
+    description: "Latest DQ rule results with pass/fail."
+    columns:
+      - name: rule_id
+        tests: [not_null, unique]
+
+  - name: mart_reconciliation
+    description: "Reconciliation findings with severity + ok flag."
+    columns:
+      - name: rule_id
+        tests: [not_null, unique]

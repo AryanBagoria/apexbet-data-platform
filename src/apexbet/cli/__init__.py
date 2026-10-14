@@ -1,0 +1,1 @@
+"""ApexBet CLI package."""

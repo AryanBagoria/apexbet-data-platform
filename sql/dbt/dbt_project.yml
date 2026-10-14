@@ -1,0 +1,31 @@
+name: 'apexbet'
+version: '1.0.0'
+config-version: 2
+
+# dbt project for the ApexBet Gold layer. It reads the Silver events that the
+# streaming/pipeline layer has already written to DuckDB (`silver_events`) and
+# materialises curated marts. This is an *optional* analytics path: the primary,
+# always-on Gold build uses `apexbet.analytics.duckdb_engine`; dbt is provided
+# as the SQL-first alternative that a traditional analytics team would use.
+#
+# Profile: `apexbet` (see sql/dbt/profiles.yml.example). The target is DuckDB.
+profile: 'apexbet'
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+models:
+  apexbet:
+    staging:
+      +materialized: view
+      +schema: staging
+    intermediate:
+      +materialized: view
+      +schema: intermediate
+    marts:
+      +materialized: table
+      +schema: marts

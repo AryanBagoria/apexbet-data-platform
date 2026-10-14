@@ -1,0 +1,884 @@
+{
+  "AccountStatusChangedPayload": {
+    "$defs": {
+      "AccountStatus": {
+        "enum": [
+          "ACTIVE",
+          "SUSPENDED",
+          "DORMANT",
+          "SELF_EXCLUDED",
+          "CLOSED"
+        ],
+        "title": "AccountStatus",
+        "type": "string"
+      }
+    },
+    "additionalProperties": true,
+    "properties": {
+      "changed_by": {
+        "default": "system",
+        "title": "Changed By",
+        "type": "string"
+      },
+      "new_status": {
+        "$ref": "#/$defs/AccountStatus"
+      },
+      "previous_status": {
+        "$ref": "#/$defs/AccountStatus"
+      },
+      "reason": {
+        "title": "Reason",
+        "type": "string"
+      }
+    },
+    "required": [
+      "previous_status",
+      "new_status",
+      "reason"
+    ],
+    "title": "AccountStatusChangedPayload",
+    "type": "object"
+  },
+  "BetAcceptedPayload": {
+    "additionalProperties": true,
+    "properties": {
+      "accepted_odds": {
+        "exclusiveMinimum": 1.0,
+        "title": "Accepted Odds",
+        "type": "number"
+      },
+      "accepted_stake_minor": {
+        "minimum": 0,
+        "title": "Accepted Stake Minor",
+        "type": "integer"
+      },
+      "bet_id": {
+        "title": "Bet Id",
+        "type": "string"
+      },
+      "currency": {
+        "maxLength": 3,
+        "minLength": 3,
+        "title": "Currency",
+        "type": "string"
+      },
+      "liability_minor": {
+        "minimum": 0,
+        "title": "Liability Minor",
+        "type": "integer"
+      },
+      "market_id": {
+        "title": "Market Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "bet_id",
+      "market_id",
+      "accepted_odds",
+      "accepted_stake_minor",
+      "currency",
+      "liability_minor"
+    ],
+    "title": "BetAcceptedPayload",
+    "type": "object"
+  },
+  "BetPlacedPayload": {
+    "$defs": {
+      "BetStatus": {
+        "enum": [
+          "PLACED",
+          "ACCEPTED",
+          "REJECTED",
+          "SETTLED",
+          "CANCELLED"
+        ],
+        "title": "BetStatus",
+        "type": "string"
+      }
+    },
+    "additionalProperties": true,
+    "properties": {
+      "bet_id": {
+        "title": "Bet Id",
+        "type": "string"
+      },
+      "bet_status": {
+        "$ref": "#/$defs/BetStatus",
+        "default": "PLACED"
+      },
+      "channel": {
+        "default": "mobile_web",
+        "title": "Channel",
+        "type": "string"
+      },
+      "currency": {
+        "maxLength": 3,
+        "minLength": 3,
+        "title": "Currency",
+        "type": "string"
+      },
+      "decimal_odds": {
+        "exclusiveMinimum": 1.0,
+        "title": "Decimal Odds",
+        "type": "number"
+      },
+      "market_id": {
+        "title": "Market Id",
+        "type": "string"
+      },
+      "outcome_id": {
+        "title": "Outcome Id",
+        "type": "string"
+      },
+      "potential_return_minor": {
+        "minimum": 0,
+        "title": "Potential Return Minor",
+        "type": "integer"
+      },
+      "sport_code": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Sport Code"
+      },
+      "stake_minor": {
+        "minimum": 0,
+        "title": "Stake Minor",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "bet_id",
+      "market_id",
+      "outcome_id",
+      "stake_minor",
+      "currency",
+      "decimal_odds",
+      "potential_return_minor"
+    ],
+    "title": "BetPlacedPayload",
+    "type": "object"
+  },
+  "BetRejectedPayload": {
+    "$defs": {
+      "RejectionReason": {
+        "enum": [
+          "INSUFFICIENT_FUNDS",
+          "MARKET_SUSPENDED",
+          "ODDS_CHANGED",
+          "ACCOUNT_RESTRICTED",
+          "LIMIT_EXCEEDED",
+          "INVALID_MARKET",
+          "DUPLICATE_BET"
+        ],
+        "title": "RejectionReason",
+        "type": "string"
+      }
+    },
+    "additionalProperties": true,
+    "properties": {
+      "bet_id": {
+        "title": "Bet Id",
+        "type": "string"
+      },
+      "currency": {
+        "maxLength": 3,
+        "minLength": 3,
+        "title": "Currency",
+        "type": "string"
+      },
+      "market_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Market Id"
+      },
+      "reason": {
+        "$ref": "#/$defs/RejectionReason"
+      },
+      "rejected_stake_minor": {
+        "minimum": 0,
+        "title": "Rejected Stake Minor",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "bet_id",
+      "reason",
+      "rejected_stake_minor",
+      "currency"
+    ],
+    "title": "BetRejectedPayload",
+    "type": "object"
+  },
+  "BetSettledPayload": {
+    "$defs": {
+      "SettlementResult": {
+        "enum": [
+          "WON",
+          "LOST",
+          "VOID",
+          "PUSH",
+          "CASH_OUT"
+        ],
+        "title": "SettlementResult",
+        "type": "string"
+      }
+    },
+    "additionalProperties": true,
+    "properties": {
+      "bet_id": {
+        "title": "Bet Id",
+        "type": "string"
+      },
+      "currency": {
+        "maxLength": 3,
+        "minLength": 3,
+        "title": "Currency",
+        "type": "string"
+      },
+      "ledger_entry_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Ledger Entry Id"
+      },
+      "market_id": {
+        "title": "Market Id",
+        "type": "string"
+      },
+      "outcome_id": {
+        "title": "Outcome Id",
+        "type": "string"
+      },
+      "payout_minor": {
+        "minimum": 0,
+        "title": "Payout Minor",
+        "type": "integer"
+      },
+      "result": {
+        "$ref": "#/$defs/SettlementResult"
+      },
+      "settled_stake_minor": {
+        "minimum": 0,
+        "title": "Settled Stake Minor",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "bet_id",
+      "market_id",
+      "outcome_id",
+      "result",
+      "settled_stake_minor",
+      "payout_minor",
+      "currency"
+    ],
+    "title": "BetSettledPayload",
+    "type": "object"
+  },
+  "DepositRecordedPayload": {
+    "additionalProperties": true,
+    "properties": {
+      "amount_minor": {
+        "minimum": 0,
+        "title": "Amount Minor",
+        "type": "integer"
+      },
+      "currency": {
+        "maxLength": 3,
+        "minLength": 3,
+        "title": "Currency",
+        "type": "string"
+      },
+      "ledger_entry_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Ledger Entry Id"
+      },
+      "method": {
+        "default": "CARD",
+        "enum": [
+          "CARD",
+          "BANK_TRANSFER",
+          "EWALLET",
+          "CRYPTO",
+          "VOUCHER"
+        ],
+        "title": "Method",
+        "type": "string"
+      },
+      "transaction_id": {
+        "title": "Transaction Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "transaction_id",
+      "amount_minor",
+      "currency"
+    ],
+    "title": "DepositRecordedPayload",
+    "type": "object"
+  },
+  "EventEnvelope": {
+    "$defs": {
+      "EventType": {
+        "enum": [
+          "BetPlaced",
+          "BetAccepted",
+          "BetRejected",
+          "BetSettled",
+          "OddsUpdated",
+          "MarketOpened",
+          "MarketSuspended",
+          "GameSessionStarted",
+          "GameSessionEnded",
+          "DepositRecorded",
+          "WithdrawalRecorded",
+          "AccountStatusChanged",
+          "ResponsibleGamblingLimitChanged",
+          "RiskSignalGenerated",
+          "PipelineHealthEvent"
+        ],
+        "title": "EventType",
+        "type": "string"
+      }
+    },
+    "additionalProperties": false,
+    "description": "The common, transport-agnostic event envelope.",
+    "properties": {
+      "account_id": {
+        "anyOf": [
+          {
+            "maxLength": 64,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Account Id"
+      },
+      "correlation_id": {
+        "anyOf": [
+          {
+            "maxLength": 64,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Correlation Id"
+      },
+      "event_id": {
+        "maxLength": 64,
+        "minLength": 3,
+        "title": "Event Id",
+        "type": "string"
+      },
+      "event_timestamp": {
+        "description": "UTC ISO-8601 time the event occurred",
+        "title": "Event Timestamp",
+        "type": "string"
+      },
+      "event_type": {
+        "$ref": "#/$defs/EventType"
+      },
+      "ingestion_timestamp": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "UTC ISO-8601 time the platform accepted the event",
+        "title": "Ingestion Timestamp"
+      },
+      "partition_key": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "description": "Routing key; equals account_id when available",
+        "title": "Partition Key"
+      },
+      "payload": {
+        "additionalProperties": true,
+        "title": "Payload",
+        "type": "object"
+      },
+      "producer": {
+        "default": "synthetic-generator",
+        "maxLength": 64,
+        "title": "Producer",
+        "type": "string"
+      },
+      "schema_version": {
+        "default": "1.2.0",
+        "title": "Schema Version",
+        "type": "string"
+      },
+      "session_id": {
+        "anyOf": [
+          {
+            "maxLength": 64,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Session Id"
+      },
+      "trace_id": {
+        "anyOf": [
+          {
+            "maxLength": 64,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Trace Id"
+      }
+    },
+    "required": [
+      "event_type",
+      "event_timestamp"
+    ],
+    "title": "EventEnvelope",
+    "type": "object"
+  },
+  "GameSessionEndedPayload": {
+    "additionalProperties": true,
+    "properties": {
+      "currency": {
+        "maxLength": 3,
+        "minLength": 3,
+        "title": "Currency",
+        "type": "string"
+      },
+      "duration_seconds": {
+        "minimum": 0,
+        "title": "Duration Seconds",
+        "type": "integer"
+      },
+      "ending_balance_minor": {
+        "minimum": 0,
+        "title": "Ending Balance Minor",
+        "type": "integer"
+      },
+      "game_id": {
+        "title": "Game Id",
+        "type": "string"
+      },
+      "game_type": {
+        "title": "Game Type",
+        "type": "string"
+      },
+      "total_wagered_minor": {
+        "minimum": 0,
+        "title": "Total Wagered Minor",
+        "type": "integer"
+      },
+      "total_won_minor": {
+        "minimum": 0,
+        "title": "Total Won Minor",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "game_type",
+      "game_id",
+      "duration_seconds",
+      "total_wagered_minor",
+      "total_won_minor",
+      "ending_balance_minor",
+      "currency"
+    ],
+    "title": "GameSessionEndedPayload",
+    "type": "object"
+  },
+  "GameSessionStartedPayload": {
+    "additionalProperties": true,
+    "properties": {
+      "currency": {
+        "maxLength": 3,
+        "minLength": 3,
+        "title": "Currency",
+        "type": "string"
+      },
+      "device": {
+        "default": "web",
+        "title": "Device",
+        "type": "string"
+      },
+      "game_id": {
+        "title": "Game Id",
+        "type": "string"
+      },
+      "game_type": {
+        "enum": [
+          "SLOTS",
+          "ROULETTE",
+          "BLACKJACK",
+          "BACCARAT",
+          "POKER",
+          "CRASH"
+        ],
+        "title": "Game Type",
+        "type": "string"
+      },
+      "starting_balance_minor": {
+        "minimum": 0,
+        "title": "Starting Balance Minor",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "game_type",
+      "game_id",
+      "starting_balance_minor",
+      "currency"
+    ],
+    "title": "GameSessionStartedPayload",
+    "type": "object"
+  },
+  "MarketOpenedPayload": {
+    "additionalProperties": true,
+    "properties": {
+      "market_id": {
+        "title": "Market Id",
+        "type": "string"
+      },
+      "market_type": {
+        "title": "Market Type",
+        "type": "string"
+      },
+      "match_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Match Id"
+      },
+      "outcome_ids": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Outcome Ids",
+        "type": "array"
+      },
+      "sport_code": {
+        "title": "Sport Code",
+        "type": "string"
+      }
+    },
+    "required": [
+      "market_id",
+      "sport_code",
+      "market_type"
+    ],
+    "title": "MarketOpenedPayload",
+    "type": "object"
+  },
+  "MarketSuspendedPayload": {
+    "additionalProperties": true,
+    "properties": {
+      "market_id": {
+        "title": "Market Id",
+        "type": "string"
+      },
+      "reason": {
+        "title": "Reason",
+        "type": "string"
+      },
+      "resume_expected": {
+        "default": false,
+        "title": "Resume Expected",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "market_id",
+      "reason"
+    ],
+    "title": "MarketSuspendedPayload",
+    "type": "object"
+  },
+  "OddsUpdatedPayload": {
+    "additionalProperties": true,
+    "properties": {
+      "market_id": {
+        "title": "Market Id",
+        "type": "string"
+      },
+      "movement_direction": {
+        "default": "UNCHANGED",
+        "enum": [
+          "UP",
+          "DOWN",
+          "UNCHANGED"
+        ],
+        "title": "Movement Direction",
+        "type": "string"
+      },
+      "new_odds": {
+        "exclusiveMinimum": 1.0,
+        "title": "New Odds",
+        "type": "number"
+      },
+      "outcome_id": {
+        "title": "Outcome Id",
+        "type": "string"
+      },
+      "previous_odds": {
+        "exclusiveMinimum": 1.0,
+        "title": "Previous Odds",
+        "type": "number"
+      },
+      "sequence": {
+        "default": 0,
+        "title": "Sequence",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "market_id",
+      "outcome_id",
+      "previous_odds",
+      "new_odds"
+    ],
+    "title": "OddsUpdatedPayload",
+    "type": "object"
+  },
+  "PipelineHealthEventPayload": {
+    "additionalProperties": true,
+    "properties": {
+      "component": {
+        "title": "Component",
+        "type": "string"
+      },
+      "detail": {
+        "default": "",
+        "title": "Detail",
+        "type": "string"
+      },
+      "metrics": {
+        "additionalProperties": true,
+        "title": "Metrics",
+        "type": "object"
+      },
+      "status": {
+        "enum": [
+          "OK",
+          "DEGRADED",
+          "FAILED"
+        ],
+        "title": "Status",
+        "type": "string"
+      }
+    },
+    "required": [
+      "component",
+      "status"
+    ],
+    "title": "PipelineHealthEventPayload",
+    "type": "object"
+  },
+  "ResponsibleGamblingLimitChangedPayload": {
+    "additionalProperties": true,
+    "properties": {
+      "currency": {
+        "default": "USD",
+        "maxLength": 3,
+        "minLength": 3,
+        "title": "Currency",
+        "type": "string"
+      },
+      "limit_type": {
+        "enum": [
+          "DEPOSIT",
+          "LOSS",
+          "STAKE",
+          "SESSION_TIME"
+        ],
+        "title": "Limit Type",
+        "type": "string"
+      },
+      "new_limit_minor": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "New Limit Minor"
+      },
+      "period": {
+        "default": "DAILY",
+        "enum": [
+          "DAILY",
+          "WEEKLY",
+          "MONTHLY"
+        ],
+        "title": "Period",
+        "type": "string"
+      },
+      "previous_limit_minor": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Previous Limit Minor"
+      }
+    },
+    "required": [
+      "limit_type"
+    ],
+    "title": "ResponsibleGamblingLimitChangedPayload",
+    "type": "object"
+  },
+  "RiskSignalGeneratedPayload": {
+    "additionalProperties": true,
+    "properties": {
+      "evidence": {
+        "additionalProperties": true,
+        "title": "Evidence",
+        "type": "object"
+      },
+      "score": {
+        "maximum": 1.0,
+        "minimum": 0.0,
+        "title": "Score",
+        "type": "number"
+      },
+      "severity": {
+        "default": "LOW",
+        "enum": [
+          "LOW",
+          "MEDIUM",
+          "HIGH",
+          "CRITICAL"
+        ],
+        "title": "Severity",
+        "type": "string"
+      },
+      "signal_type": {
+        "title": "Signal Type",
+        "type": "string"
+      }
+    },
+    "required": [
+      "signal_type",
+      "score"
+    ],
+    "title": "RiskSignalGeneratedPayload",
+    "type": "object"
+  },
+  "WithdrawalRecordedPayload": {
+    "additionalProperties": true,
+    "properties": {
+      "amount_minor": {
+        "minimum": 0,
+        "title": "Amount Minor",
+        "type": "integer"
+      },
+      "currency": {
+        "maxLength": 3,
+        "minLength": 3,
+        "title": "Currency",
+        "type": "string"
+      },
+      "ledger_entry_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Ledger Entry Id"
+      },
+      "method": {
+        "default": "CARD",
+        "enum": [
+          "CARD",
+          "BANK_TRANSFER",
+          "EWALLET",
+          "CRYPTO",
+          "VOUCHER"
+        ],
+        "title": "Method",
+        "type": "string"
+      },
+      "transaction_id": {
+        "title": "Transaction Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "transaction_id",
+      "amount_minor",
+      "currency"
+    ],
+    "title": "WithdrawalRecordedPayload",
+    "type": "object"
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "title": "ApexBet Platform Overview",
+  "uid": "apexbet-overview",
+  "tags": ["apexbet", "platform"],
+  "timezone": "utc",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-30m", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Ingestion request rate (by status)",
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum by (status) (rate(apexbet_api_requests_total[1m]))",
+          "legendFormat": "{{status}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Ingestion p95 latency (seconds)",
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(apexbet_api_request_latency_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p95"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Events published (total)",
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 8 },
+      "targets": [
+        { "expr": "sum(apexbet_events_published_total)", "legendFormat": "published" }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Events rejected (total)",
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 8 },
+      "targets": [
+        { "expr": "sum(apexbet_events_rejected_total)", "legendFormat": "rejected" }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Service up",
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 8 },
+      "targets": [
+        { "expr": "apexbet_up", "legendFormat": "up" }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Redpanda consumer lag (messages)",
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 14 },
+      "targets": [
+        {
+          "expr": "redpanda_kafka_consumer_group_lag",
+          "legendFormat": "{{group}} {{topic}}"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,306 @@
+name: apexbet
+
+# Two profiles:
+#   demo  -> minimum end-to-end demo (Redpanda + API + consumers + lake)
+#   full  -> adds LocalStack, Postgres, Airflow, Prometheus, Grafana, Spark, Ollama
+#
+# Usage:
+#   docker compose --profile demo up -d
+#   docker compose --profile full up -d
+#
+# Resource notes: the "full" profile is heavy (Airflow + Spark + LocalStack).
+# Budget >= 8 GB RAM for full, ~2 GB for demo. No large datasets/models are
+# downloaded automatically.
+
+x-apexbet-env: &apexbet-env
+  APEXBET_ENV: local
+  APEXBET_LOG_JSON: "true"
+  APEXBET_TRANSPORT: ${APEXBET_TRANSPORT:-redpanda}
+  APEXBET_KAFKA_BOOTSTRAP: redpanda:9092
+  APEXBET_KAFKA_TOPIC: apexbet.events.v1
+  APEXBET_KAFKA_DLQ_TOPIC: apexbet.events.dlq.v1
+  APEXBET_STORAGE_BACKEND: ${APEXBET_STORAGE_BACKEND:-local}
+  APEXBET_LAKE_ROOT: /data/lake
+  APEXBET_DUCKDB_PATH: /data/lake/analytics.duckdb
+  AWS_ENDPOINT_URL: http://localstack:4566
+  AWS_REGION: us-east-1
+  AWS_ACCESS_KEY_ID: test
+  AWS_SECRET_ACCESS_KEY: test
+
+services:
+  # ---------------- streaming broker (demo + full) ----------------
+  redpanda:
+    image: redpandadata/redpanda:v24.2.7
+    profiles: ["demo", "full"]
+    command:
+      - redpanda
+      - start
+      - --smp
+      - "1"
+      - --memory
+      - 1G
+      - --overprovisioned
+      - --node-id
+      - "0"
+      - --kafka-addr
+      - PLAINTEXT://0.0.0.0:9092,OUTSIDE://0.0.0.0:19092
+      - --advertise-kafka-addr
+      - PLAINTEXT://redpanda:9092,OUTSIDE://localhost:19092
+      - --rpc-addr
+      - 0.0.0.0:33145
+      - --check=false
+    ports:
+      - "19092:19092"
+      - "9644:9644"
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -q 'Healthy:.*true'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - redpanda-data:/var/lib/redpanda/data
+    deploy:
+      resources:
+        limits:
+          memory: 1.5g
+
+  redpanda-init:
+    image: redpandadata/redpanda:v24.2.7
+    profiles: ["demo", "full"]
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "rpk topic create apexbet.events.v1 apexbet.events.dlq.v1 -p 3 -r 1 -X brokers=redpanda:9092 || true"
+
+  # ---------------- ingestion API ----------------
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    profiles: ["demo", "full"]
+    environment:
+      <<: *apexbet-env
+      APEXBET_API_PORT: "8000"
+    command: ["uvicorn", "apexbet.ingestion.app:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8000:8000"
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    volumes:
+      - lake-data:/data/lake
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  # ---------------- streaming consumer / processor ----------------
+  consumer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    profiles: ["demo", "full"]
+    environment:
+      <<: *apexbet-env
+    # Runs the pipeline continuously against the configured streaming backend.
+    command: >
+      python -c "from apexbet.common.storage import build_store; from apexbet.consumers import Pipeline;
+      from apexbet.transports import build_transport; from apexbet.config import get_settings;
+      s=get_settings(); t=build_transport(s.transport, settings=s);
+      p=Pipeline(t, build_store(), source_topic=s.kafka_topic, dlq_topic=s.kafka_dlq_topic, group_id=s.kafka_group_id);
+      p.run()"
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    volumes:
+      - lake-data:/data/lake
+    deploy:
+      resources:
+        limits:
+          memory: 768m
+
+  # ---------------- generator (one-shot, demo helper) ----------------
+  generator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    profiles: ["demo", "full"]
+    environment:
+      <<: *apexbet-env
+    command: ["apexbet", "ingest", "--count", "5000", "--dirty"]
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    restart: "no"
+
+  # ---------------- LocalStack (full) ----------------
+  localstack:
+    image: localstack/localstack:3.8
+    profiles: ["full"]
+    environment:
+      SERVICES: s3,kinesis,sqs,sns,cloudwatch,iam,sts,secretsmanager,events
+      DEBUG: "0"
+      PERSISTENCE: "1"
+      LS_LOG: warn
+    ports:
+      - "4566:4566"
+    volumes:
+      - localstack-data:/var/lib/localstack
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:4566/_localstack/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+
+  # ---------------- PostgreSQL (full) ----------------
+  postgres:
+    image: postgres:16.4-alpine
+    profiles: ["full"]
+    environment:
+      POSTGRES_USER: apexbet
+      POSTGRES_PASSWORD: apexbet
+      POSTGRES_DB: apexbet
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U apexbet"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ---------------- MinIO (full, optional S3 alternative) ----------------
+  minio:
+    image: minio/minio:RELEASE.2024-09-13T20-26-02Z
+    profiles: ["full"]
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: apexbet
+      MINIO_ROOT_PASSWORD: apexbetminio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "mc ready local || true"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  # ---------------- Airflow (full) ----------------
+  airflow:
+    image: apache/airflow:2.10.2-python3.11
+    profiles: ["full"]
+    environment:
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://apexbet:apexbet@postgres:5432/apexbet
+      AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
+      APEXBET_HOME: /opt/apexbet/src
+      APEXBET_LAKE_ROOT: /data/lake
+      APEXBET_DUCKDB_PATH: /data/lake/analytics.duckdb
+      APEXBET_TRANSPORT: ${APEXBET_TRANSPORT:-redpanda}
+      APEXBET_KAFKA_BOOTSTRAP: redpanda:9092
+      _PIP_ADDITIONAL_REQUIREMENTS: ""
+    command: >
+      bash -c "pip install -e /opt/apexbet && airflow db migrate &&
+      (airflow scheduler &) && airflow standalone"
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./src:/opt/apexbet/src
+      - ./pyproject.toml:/opt/apexbet/pyproject.toml
+      - ./README.md:/opt/apexbet/README.md
+      - lake-data:/data/lake
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+
+  # ---------------- Spark (full) ----------------
+  spark:
+    image: bitnami/spark:3.5.2
+    profiles: ["full"]
+    environment:
+      SPARK_MODE: master
+    ports:
+      - "8081:8080"
+      - "7077:7077"
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+
+  # ---------------- Prometheus (full) ----------------
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    profiles: ["full"]
+    volumes:
+      - ./docker/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./docker/prometheus-alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+
+  # ---------------- Grafana (full) ----------------
+  grafana:
+    image: grafana/grafana:11.2.0
+    profiles: ["full"]
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+
+  # ---------------- Ollama (full, optional LLM) ----------------
+  # Model is NOT pulled automatically (disk/CPU cost). Run:
+  #   docker exec -it apexbet-ollama-1 ollama pull llama3.2:3b
+  ollama:
+    image: ollama/ollama:0.3.12
+    profiles: ["full"]
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    deploy:
+      resources:
+        limits:
+          memory: 4g
+
+volumes:
+  redpanda-data:
+  lake-data:
+  localstack-data:
+  postgres-data:
+  minio-data:
+  prometheus-data:
+  grafana-data:
+  ollama-data:

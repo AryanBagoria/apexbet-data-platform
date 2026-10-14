@@ -1,0 +1,68 @@
+# ---- Secrets & local state (never commit) ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+terraform.tfstate
+terraform.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+
+# ---- Data lake & local artifacts (generated) ----
+lake/
+data/
+*.duckdb
+*.duckdb.wal
+*.db
+out/
+artifacts/
+checkpoints/
+logs/
+*.log
+benchmark_results*.json
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+.hypothesis/
+.spark-warehouse/
+derby.log
+metastore_db/
+
+# ---- Node / dbt ----
+node_modules/
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
+frontend/playwright/.cache/
+.vite/
+dbt_packages/
+target/
+dbt/target/
+dbt/logs/
+logs/dbt/
+
+# ---- Spark ----
+spark-warehouse/
+**/spark-warehouse/
+
+# ---- IDE / OS ----
+.DS_Store
+.idea/
+.vscode/
+*.swp

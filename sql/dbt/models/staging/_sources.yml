@@ -1,0 +1,31 @@
+version: 2
+
+sources:
+  # The Silver event table is produced by the Python pipeline
+  # (`apexbet.orchestration.run_pipeline` -> `AnalyticsEngine.load_silver`).
+  - name: apexbet_raw
+    description: "Silver events landed by the streaming pipeline into DuckDB."
+    schema: main
+    tables:
+      - name: silver_events
+        description: >
+          One row per (deduplicated) event after Bronze -> Silver transformation.
+          `payload` is a nested struct; monetary fields are integer minor units.
+        columns:
+          - name: event_id
+            description: Globally unique event id (dedup key).
+            tests: [not_null, unique]
+          - name: event_type
+            description: One of the 15 registered contract event types.
+            tests: [not_null]
+          - name: event_date
+            description: UTC date partition derived from event_timestamp.
+            tests: [not_null]
+          - name: event_category
+            description: Derived business category (BETTING/SETTLEMENT/...).
+      - name: dq_results
+        description: "Data-quality rule results (one row per rule run)."
+      - name: reconciliation_results
+        description: "Financial reconciliation findings."
+      - name: anomaly_alerts
+        description: "Anomaly-detector alerts."

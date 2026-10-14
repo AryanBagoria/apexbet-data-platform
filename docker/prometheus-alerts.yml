@@ -1,0 +1,43 @@
+groups:
+  - name: apexbet-alerts
+    rules:
+      - alert: ApexBetAPIDown
+        expr: up{job="apexbet-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "ApexBet ingestion API is down"
+          description: "The ingestion API has been unreachable for 1 minute."
+
+      - alert: ApexBetHighRejectionRate
+        expr: |
+          sum(rate(apexbet_events_rejected_total[5m]))
+            / clamp_min(sum(rate(apexbet_events_published_total[5m])), 1) > 0.25
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High event rejection rate"
+          description: "Rejected events exceed 25% of published events for 5 minutes."
+
+      - alert: ApexBetPublishErrors
+        expr: increase(apexbet_publish_errors_total[5m]) > 5
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Streaming publish errors detected"
+          description: "The API failed to publish to the streaming backend."
+
+      - alert: ApexBetAPIHighLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(apexbet_api_request_latency_seconds_bucket{endpoint="/api/v1/events"}[5m])) by (le)
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Ingestion p95 latency above 500ms"
+          description: "p95 ingestion latency has exceeded 500ms for 5 minutes."
