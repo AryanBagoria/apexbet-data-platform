@@ -15,9 +15,9 @@ this project adheres to [Semantic Versioning](https://semver.org/).
 - **Dashboard serving layer** (`src/apexbet/serving/`): typed, paginated,
   bounded read endpoints under `/api/v1/dashboard/*` plus an honest
   "unavailable" contract when artefacts are missing.
-- **Safe demo controls** (`src/apexbet/demo_control.py`): bounded, validated,
-  background-thread demo jobs (max 50,000 events) exposed via the API — no shell
-  or arbitrary code execution.
+- **Bounded pipeline controls** (`src/apexbet/demo_control.py`): validated,
+  background-thread jobs (max 50,000 events) exposed via the API — no shell or
+  arbitrary code execution.
 - **Interactive pipeline lineage** graph (React Flow) whose node statuses derive
   from real state, with a click-through details panel.
 - **Frontend tests**: 18 Vitest unit/component tests and 9 Playwright e2e tests.
@@ -26,6 +26,17 @@ this project adheres to [Semantic Versioning](https://semver.org/).
 - **Screenshots** captured from the running app in `docs/assets/`
   (`make screenshots`).
 - **Docs**: `docs/dashboard/README.md`.
+
+### Fixed
+
+- **Terraform fallback no longer crashes** when neither the `terraform` binary nor
+  `python-hcl2` is installed: `apexbet terraform-validate` reports
+  `ok: false` with an explicit reason instead of raising `KeyError`. The HCL2
+  parser is now an optional `infra` extra.
+- **Latency chart axis** now switches to seconds above 1000 ms, so values in the
+  millions of milliseconds no longer overflow the axis width.
+- **Playwright and screenshot defaults** use `127.0.0.1` rather than `localhost`,
+  avoiding a collision when another server is bound to the IPv6 loopback.
 
 ## [0.1.0] — 2026-10-14
 
